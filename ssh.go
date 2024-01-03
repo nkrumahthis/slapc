@@ -12,7 +12,6 @@ import (
 
 func ConnectToServer(host, user, pwd string) {
 	pKey, err := os.ReadFile("config/privatekey")
-	
 	if err != nil {
 		panic("Couldn't read config file")
 	}
@@ -25,13 +24,14 @@ func ConnectToServer(host, user, pwd string) {
 	}
 
 	var hostkeyCallback ssh.HostKeyCallback
-	hostkeyCallback, err = knownhosts.New("/Users/zp-tch-024/.ssh/known_hosts")
+	knownHostsPath := os.Getenv("KNOWN_HOSTS")
+	hostkeyCallback, err = knownhosts.New(knownHostsPath)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
 	conf := &ssh.ClientConfig{
-		User: user,
+		User:            user,
 		HostKeyCallback: hostkeyCallback,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(pwd),
@@ -42,9 +42,18 @@ func ConnectToServer(host, user, pwd string) {
 	var conn *ssh.Client
 
 	fmt.Println("Connecting to SSH server")
+
 	conn, err = ssh.Dial("tcp", host, conf)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	defer conn.Close()
+
+	fmt.Println("Creating a client session for the connection")
+	var session *ssh.Session
+	session, err = conn.NewSession()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer session.Close()
 }
