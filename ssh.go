@@ -10,6 +10,52 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+func CreateServerConnection(server Server) (*ssh.Client, error) {
+	appConfig := GetAppConfig()
+	pKey, err := os.ReadFile(appConfig.PrivateKey)
+	if err != nil {
+		panic("Couldn't read config file")
+	}
+
+	var signer ssh.Signer
+
+	signer, err = ssh.ParsePrivateKey(pKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var hostkeyCallback ssh.HostKeyCallback
+	knownHostsPath := appConfig.KnownHosts
+	hostkeyCallback, err = knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sshConfig := &ssh.ClientConfig{
+		User:            server.User,
+		HostKeyCallback: hostkeyCallback,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(server.Pass),
+			ssh.PublicKeys(signer),
+		},
+	}
+
+	var conn *ssh.Client
+
+	fmt.Println("Connecting to SSH server")
+
+	serverAddress := server.Host + ":" + server.Port
+
+	conn, err = ssh.Dial("tcp", serverAddress, sshConfig)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	return conn, nil
+}
+
+
 // from https://medium.com/@marcus.murray/go-ssh-client-shell-session-c4d40daa46cd
 
 func ConnectToServer(host, user, pwd string) {
