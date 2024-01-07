@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,4 +50,26 @@ func readConfig() Config {
 
 func main() {
 	config := GetAppConfig()
+
+	for index, srv := range config.Servers {
+		fmt.Printf("[%d] %s\n", index + 1, srv.Name)
+	}
+
+	input := bufio.NewScanner(os.Stdin)
+	input.Scan()
+	response := input.Text()
+
+	responseIndex, err := strconv.Atoi(response)
+	if err != nil {
+		panic("invalid response")
+	}
+	if responseIndex > len(config.Servers) {
+		panic("response out of range")
+	}
+
+	chosenServer := config.Servers[responseIndex - 1]
+	connection, err := CreateServerConnection(chosenServer)
+	if err != nil {
+		panic(err.Error())
+	}
 }
