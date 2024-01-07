@@ -49,6 +49,14 @@ func readConfig() Config {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		args := os.Args[1:]
+		switch command := args[0]; command {
+		case "help":
+			fmt.Println("slapc: see logs and pull code")
+		}
+	}
+
 	config := GetAppConfig()
 
 	for index, srv := range config.Servers {
