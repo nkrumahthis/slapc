@@ -1,25 +1,52 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-
-	"github.com/joho/godotenv"
+	"strconv"
 )
 
+var appConfig Config
+
+type Server struct {
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Port string `json:"port"`
+	User string `json:"user"`
+	Pass string `json:"pass"`
+	Path string `json:"path"`
+}
+type Config struct {
+	KnownHosts string   `json:"known_hosts"`
+	PrivateKey string   `json:"private_key"`
+	Servers    []Server `json:"servers"`
+}
+
 func init() {
-	err := godotenv.Load(".env")
+	appConfig = readConfig()
+}
+
+func GetAppConfig() Config {
+	return appConfig
+}
+
+func readConfig() Config {
+	configFileBytes, err := os.ReadFile("./config.json")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		panic("Error reading config file " + err.Error())
 	}
+
+	var config Config
+
+	err = json.Unmarshal(configFileBytes, &config)
+	if err != nil {
+		panic("error unmarshalling config " + err.Error())
+	}
+
+	return config
 }
 
 func main() {
-	host := os.Getenv("HOST")
-	user := os.Getenv("USERNAME")
-	pwd := os.Getenv("PASSWORD")
-	fmt.Println(host)
-	ConnectToServer(host, user, pwd)
-	fmt.Println("successful")
+	config := GetAppConfig()
 }
