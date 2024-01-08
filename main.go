@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
@@ -60,7 +61,7 @@ func main() {
 	config := GetAppConfig()
 
 	for index, srv := range config.Servers {
-		fmt.Printf("[%d] %s\n", index + 1, srv.Name)
+		fmt.Printf("[%d] %s\n", index+1, srv.Name)
 	}
 
 	input := bufio.NewScanner(os.Stdin)
@@ -75,7 +76,7 @@ func main() {
 		panic("response out of range")
 	}
 
-	chosenServer := config.Servers[responseIndex - 1]
+	chosenServer := config.Servers[responseIndex-1]
 	connection, err := CreateServerConnection(chosenServer)
 	if err != nil {
 		panic(err.Error())
@@ -83,5 +84,52 @@ func main() {
 
 	defer connection.Close()
 
-	CreateSSHSession(connection)
+	session, err := connection.NewSession()
+	if err != nil {
+		fmt.Println("Failed to create session: ", err)
+		return
+	}
+	defer session.Close()
+
+	// set up pipes
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// Goroutine to handle command output
+	go func() {
+		io.Copy(os.Stdout, stdout)
+	}()
+	go func() {
+		io.Copy(os.Stderr, stderr)
+	}()
+
+	session.Shell()
+
+	// Get list of projects
+	_, err = fmt.Fprintln(stdin, "ls -d "+chosenServer.Path+"/*/")
+	if err != nil {
+		fmt.Println("Failed to send command: ", err)
+		return
+	}
+
+	// Wait for the commands to finish
+	err = session.Wait()
+	if err != nil {
+		fmt.Println("Failed to wait for session: ", err)
+		return
+	}
+
+	// session := CreateSSHSession(connection)
 }
