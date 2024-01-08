@@ -81,5 +81,7 @@ func main() {
 		panic(err.Error())
 	}
 
+	defer connection.Close()
+
 	CreateSSHSession(connection)
 }

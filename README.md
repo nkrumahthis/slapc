@@ -24,4 +24,8 @@ Create a new json file called config.json in the same directory as the executabl
 }
 ```
 
-Add as many server entries as you want to servers.
+Add as many server entries as you want to to the servers array.
+
+## Todo
+
+When the config.json file is not found, open the default text editor automatically and save to the right path that slapc will read.

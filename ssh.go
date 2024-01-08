@@ -50,7 +50,6 @@ func CreateServerConnection(server Server) (*ssh.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	return conn, nil
 }
