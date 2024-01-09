@@ -42,7 +42,7 @@ func CreateServerConnection(server Server) (*ssh.Client, error) {
 
 	var conn *ssh.Client
 
-	fmt.Println("Connecting to SSH server")
+	fmt.Println("Connecting to " + server.Name)
 
 	serverAddress := server.Host + ":" + server.Port
 

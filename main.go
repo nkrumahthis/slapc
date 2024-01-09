@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var appConfig Config
@@ -67,6 +67,7 @@ func main() {
 	input := bufio.NewScanner(os.Stdin)
 	input.Scan()
 	response := input.Text()
+	// response := "1"
 
 	responseIndex, err := strconv.Atoi(response)
 	if err != nil {
@@ -92,44 +93,40 @@ func main() {
 	defer session.Close()
 
 	// set up pipes
-	stdin, err := session.StdinPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	// stdin, err := session.StdinPipe()
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// }
 
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	// stdout, err := session.StdoutPipe()
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// }
 
-	stderr, err := session.StderrPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	// Goroutine to handle command output
-	go func() {
-		io.Copy(os.Stdout, stdout)
-	}()
-	go func() {
-		io.Copy(os.Stderr, stderr)
-	}()
-
-	session.Shell()
+	// stderr, err := session.StderrPipe()
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// }
 
 	// Get list of projects
-	_, err = fmt.Fprintln(stdin, "ls -d "+chosenServer.Path+"/*/")
+	// directories, err = fmt.Fprintln(stdin, "ls -d "+chosenServer.Path+"/*/")
+	res1, err := session.Output("ls -d "+chosenServer.Path+"/*")
 	if err != nil {
 		fmt.Println("Failed to send command: ", err)
 		return
 	}
 
-	// Wait for the commands to finish
-	err = session.Wait()
-	if err != nil {
-		fmt.Println("Failed to wait for session: ", err)
-		return
+	dirPaths := strings.Split(string(res1), "\n")
+	var directories []string
+	for _, dirPath := range dirPaths {
+		if(dirPath != "" && strings.HasPrefix(dirPath, chosenServer.Path)){
+			directories = append(directories, dirPath)
+		}
 	}
 
-	// session := CreateSSHSession(connection)
+	for idx, dir := range directories {
+		directoryNumber := strconv.Itoa(idx + 1)
+		fmt.Println(directoryNumber + " " + strings.Split(dir, "/")[4])
+	}
+
 }
