@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
-	"strings"
 )
 
 var appConfig Config
@@ -93,40 +93,145 @@ func main() {
 	defer session.Close()
 
 	// set up pipes
-	// stdin, err := session.StdinPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// stdout, err := session.StdoutPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// stderr, err := session.StderrPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// outputChannel := make(chan []byte)
+	// go watchStdoutForResponse(stdout, outputChannel)
+
+	wr := make(chan []byte)
+
+	go watchStdin(stdin, wr)
+
+	go watchStdout(stdout, wr)
+
+	go watchStderr(stderr, wr)
+
+	session.Shell()
+
+	wr <- []byte("echo @ && ls -d "+chosenServer.Path+"/* && echo ^\n")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	
+		// for {
+	// 	fmt.Println("$")
+	// 	scanner := bufio.NewScanner(os.Stdin)
+	// 	scanner.Scan()
+	// 	text := scanner.Text()
+	// 	wr <- []byte(text + "\n")
 	// }
 
 	// Get list of projects
 	// directories, err = fmt.Fprintln(stdin, "ls -d "+chosenServer.Path+"/*/")
-	res1, err := session.Output("ls -d "+chosenServer.Path+"/*")
-	if err != nil {
-		fmt.Println("Failed to send command: ", err)
-		return
-	}
+	// res1, err := session.Output("echo @ && ls -d "+chosenServer.Path+"/* && echo ^")
 
-	dirPaths := strings.Split(string(res1), "\n")
-	var directories []string
-	for _, dirPath := range dirPaths {
-		if(dirPath != "" && strings.HasPrefix(dirPath, chosenServer.Path)){
-			directories = append(directories, dirPath)
+	// fmt.Println("getting projects")
+
+	// stdin.Write([]byte("echo @ && ls -d "+chosenServer.Path+"/* && echo ^"))
+	// if err != nil {
+	// 	fmt.Println("Failed to send command: ", err)
+	// 	return
+	// }
+	// fmt.Println("command sent")
+	// res1 := <- outputChannel
+
+	// dirPaths := strings.Split(string(res1), "\n")
+	// var directories []string
+	// for _, dirPath := range dirPaths {
+	// 	if(strings.HasPrefix(dirPath, chosenServer.Path)){
+	// 		directories = append(directories, dirPath)
+	// 	}
+	// }
+
+	// for idx, dir := range directories {
+	// 	directoryNumber := strconv.Itoa(idx + 1)
+	// 	fmt.Println(directoryNumber + " " + strings.Split(dir, "/")[4])
+	// }
+
+	// input.Scan()
+	// response = input.Text()
+	// // response := "1"
+
+	// responseIndex, err = strconv.Atoi(response)
+
+	// res2, err := session.Output("ls -d "+chosenServer.Path+"/"+directories[responseIndex])
+	// if err != nil {
+	// 	fmt.Println("Failed to send command: ", err)
+	// 	return
+	// }
+
+	// fmt.Println(string(res2))
+
+}
+
+func watchStdin(stdin io.WriteCloser, wr chan []byte){
+	for {
+		select {
+		case d := <-wr:
+			_, err := stdin.Write(d)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 		}
 	}
+}
 
-	for idx, dir := range directories {
-		directoryNumber := strconv.Itoa(idx + 1)
-		fmt.Println(directoryNumber + " " + strings.Split(dir, "/")[4])
+func watchStdout(stdout io.Reader, wr chan []byte) {
+	scanner := bufio.NewScanner(stdout)
+	for {
+		if tkn := scanner.Scan(); tkn {
+			rcv := scanner.Bytes()
+			raw := make([]byte, len(rcv))
+			copy(raw, rcv)
+			fmt.Println(string(raw))
+		} else {
+			if scanner.Err() != nil {
+				fmt.Println(scanner.Err())
+			} else {
+				fmt.Println("io.EOF")
+			}
+			return
+		}
 	}
+}
 
+func watchStderr(stderr io.Reader, wr chan []byte) {
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+}
+
+func watchStdoutForResponse(stdout io.Reader, outputChannel chan []byte) {
+	scanner := bufio.NewScanner(stdout)
+	for {
+		if tkn := scanner.Scan(); tkn {
+			fmt.Println("getting response")
+			rcv := scanner.Bytes()
+			raw := make([]byte, len(rcv))
+			copy(raw, rcv)
+			fmt.Println("raw" + string(raw))
+			// outputChannel <- raw
+		} else {
+			if scanner.Err() != nil {
+				fmt.Println(scanner.Err())
+			} else {
+				fmt.Println("io.EOF")
+			}
+			return
+		}
+	}
 }
