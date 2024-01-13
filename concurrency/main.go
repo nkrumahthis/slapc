@@ -21,6 +21,7 @@ func main() {
 }
 
 func emit(stream chan int, announce chan int) {
+	defer close(stream)
 	for i := 0; i < 10; i++ {
 		stream <- i
 		time.Sleep(time.Second * 1)
@@ -31,8 +32,7 @@ func emit(stream chan int, announce chan int) {
 }
 
 func catch(stream chan int) {
-	for {
-		i := <-stream
+	for i := range stream {
 		fmt.Println(i * 100)
 	}
 }
