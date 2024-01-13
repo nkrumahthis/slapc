@@ -7,23 +7,31 @@ import (
 
 func main() {
 	fmt.Println("started main")
-	channel := make(chan string)
 
-	go waitC(channel)
-	time.Sleep(time.Second * 1)
-	fmt.Println("main finished")
+	stream := make(chan int)
+	announce := make(chan int)
 
-	var response string
-	response = <- channel
+	go emit(stream, announce) 
 
-	fmt.Println(response)
-	fmt.Println("end")
+	go catch(stream)
+
+	<-announce
 
 }
 
-func waitC(channel chan string) {
-	fmt.Println("started waitC")
-	time.Sleep(time.Second * 3)
-	response := "waitC finished"
-	channel <- response
+func emit(stream chan int, announce chan int) {
+	for i := 0; i < 10; i++ {
+		stream <- i
+		time.Sleep(time.Second * 1)
+	}
+
+	announce <- 0
+
+}
+
+func catch(stream chan int) {
+	for {
+		i := <-stream
+		fmt.Println(i * 100)
+	}
 }
