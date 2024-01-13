@@ -7,11 +7,14 @@ import (
 
 func main() {
 	fmt.Println("started c")
-	var channel chan string
+	channel := make(chan string)
+
 	go waitC(channel)
 	time.Sleep(time.Second * 3)
+
 	var response string
 	response = <- channel
+	
 	fmt.Println(response)
 	fmt.Println("end")
 
