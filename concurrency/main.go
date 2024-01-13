@@ -17,6 +17,7 @@ func main() {
 
 	<-announce
 
+	fmt.Println("End of main")
 }
 
 func emit(stream chan int, announce chan int) {
@@ -25,7 +26,7 @@ func emit(stream chan int, announce chan int) {
 		time.Sleep(time.Second * 1)
 	}
 
-	announce <- 0
+	close(announce)
 
 }
 
