@@ -109,9 +109,8 @@ func main() {
 	}
 
 	// outputChannel := make(chan []byte)
-	// go watchStdoutForResponse(stdout, outputChannel)
-
 	wr := make(chan []byte)
+	finish := make(chan bool)
 
 	go watchStdin(stdin, wr)
 
@@ -121,12 +120,34 @@ func main() {
 
 	session.Shell()
 
-	wr <- []byte("echo @ && ls -d "+chosenServer.Path+"/* && echo ^\n")
+	commands := []string{
+		"ls -d " + chosenServer.Path + "/*/",
+	}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	
-		// for {
+	go executeCommands(commands, wr, finish)
+
+	<- finish
+
+	fmt.Println("End of main")
+
+	// go watchStdoutForResponse(stdout, outputChannel)
+
+	// wr := make(chan []byte)
+
+	// go watchStdin(stdin, wr)
+
+	// go watchStdout(stdout, wr)
+
+	// go watchStderr(stderr, wr)
+
+	// session.Shell()
+
+	// wr <- []byte("echo @ && ls -d "+chosenServer.Path+"/* && echo ^\n")
+
+	// scanner := bufio.NewScanner(os.Stdin)
+	// scanner.Scan()
+
+	// for {
 	// 	fmt.Println("$")
 	// 	scanner := bufio.NewScanner(os.Stdin)
 	// 	scanner.Scan()
@@ -177,7 +198,17 @@ func main() {
 
 }
 
-func watchStdin(stdin io.WriteCloser, wr chan []byte){
+func executeCommands(commands []string, wr chan []byte, finish chan bool){
+	defer close(wr)
+
+	for _, command := range commands {
+		wr <- []byte(command + "\n")
+	}
+
+	close(finish)
+}
+
+func watchStdin(stdin io.WriteCloser, wr chan []byte) {
 	for {
 		select {
 		case d := <-wr:
@@ -224,7 +255,7 @@ func watchStdoutForResponse(stdout io.Reader, outputChannel chan []byte) {
 			raw := make([]byte, len(rcv))
 			copy(raw, rcv)
 			fmt.Println("raw" + string(raw))
-			// outputChannel <- raw
+			outputChannel <- raw
 		} else {
 			if scanner.Err() != nil {
 				fmt.Println(scanner.Err())
