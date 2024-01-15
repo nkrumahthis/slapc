@@ -122,6 +122,7 @@ func main() {
 
 	commands := []string{
 		"ls -d " + chosenServer.Path + "/*/",
+		"ls -d " + chosenServer.Path + "/*/",
 	}
 
 	go executeCommands(commands, wr, finish)
@@ -201,11 +202,11 @@ func main() {
 func executeCommands(commands []string, wr chan []byte, finish chan bool){
 	defer close(wr)
 
-	for _, command := range commands {
-		wr <- []byte(command + "\n")
+	for i, command := range commands {
+		formattedCommand := "echo @[" + strconv.Itoa(i) + "] && " + command + " && echo ^[" + strconv.Itoa(i) + "] \n"
+		wr <- []byte(formattedCommand)
+		fmt.Println("command sent")
 	}
-
-	close(finish)
 }
 
 func watchStdin(stdin io.WriteCloser, wr chan []byte) {
