@@ -7,9 +7,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/widget"
 )
 
 var appConfig Config
@@ -54,92 +51,86 @@ func readConfig() Config {
 
 func main() {
 
-	myApp := app.New()
-	myWindow := myApp.NewWindow("SLAPC")
+	if len(os.Args) > 1 {
+		args := os.Args[1:]
+		switch command := args[0]; command {
+		case "help":
+			fmt.Println("slapc: see logs and pull code")
+		}
+	}
 
-	myWindow.SetContent(widget.NewLabel("Hello Fyne!"))
-	myWindow.ShowAndRun()
+	config := GetAppConfig()
 
-	// if len(os.Args) > 1 {
-	// 	args := os.Args[1:]
-	// 	switch command := args[0]; command {
-	// 	case "help":
-	// 		fmt.Println("slapc: see logs and pull code")
-	// 	}
-	// }
+	for index, srv := range config.Servers {
+		fmt.Printf("[%d] %s\n", index+1, srv.Name)
+	}
 
-	// config := GetAppConfig()
+	input := bufio.NewScanner(os.Stdin)
+	input.Scan()
+	response := input.Text()
+	// response := "1"
 
-	// for index, srv := range config.Servers {
-	// 	fmt.Printf("[%d] %s\n", index+1, srv.Name)
-	// }
+	responseIndex, err := strconv.Atoi(response)
+	if err != nil {
+		panic("invalid response")
+	}
+	if responseIndex > len(config.Servers) {
+		panic("response out of range")
+	}
 
-	// input := bufio.NewScanner(os.Stdin)
-	// input.Scan()
-	// response := input.Text()
-	// // response := "1"
+	chosenServer := config.Servers[responseIndex-1]
+	connection, err := CreateServerConnection(chosenServer)
+	if err != nil {
+		panic(err.Error())
+	}
 
-	// responseIndex, err := strconv.Atoi(response)
-	// if err != nil {
-	// 	panic("invalid response")
-	// }
-	// if responseIndex > len(config.Servers) {
-	// 	panic("response out of range")
-	// }
+	defer connection.Close()
 
-	// chosenServer := config.Servers[responseIndex-1]
-	// connection, err := CreateServerConnection(chosenServer)
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
+	session, err := connection.NewSession()
+	if err != nil {
+		fmt.Println("Failed to create session: ", err)
+		return
+	}
+	defer session.Close()
 
-	// defer connection.Close()
+	// set up pipes
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// session, err := connection.NewSession()
-	// if err != nil {
-	// 	fmt.Println("Failed to create session: ", err)
-	// 	return
-	// }
-	// defer session.Close()
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// // set up pipes
-	// stdin, err := session.StdinPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
-	// stdout, err := session.StdoutPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+	// outputChannel := make(chan []byte)
+	wr := make(chan []byte)
+	finish := make(chan bool)
 
-	// stderr, err := session.StderrPipe()
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+	go watchStdin(stdin, wr)
 
-	// // outputChannel := make(chan []byte)
-	// wr := make(chan []byte)
-	// finish := make(chan bool)
+	go watchStdout(stdout, wr)
 
-	// go watchStdin(stdin, wr)
+	go watchStderr(stderr, wr)
 
-	// go watchStdout(stdout, wr)
+	session.Shell()
 
-	// go watchStderr(stderr, wr)
+	commands := []string{
+		"ls -d " + chosenServer.Path + "/*/",
+		"ls -d " + chosenServer.Path + "/*/",
+	}
 
-	// session.Shell()
+	go executeCommands(commands, wr, finish)
 
-	// commands := []string{
-	// 	"ls -d " + chosenServer.Path + "/*/",
-	// 	"ls -d " + chosenServer.Path + "/*/",
-	// }
+	<- finish
 
-	// go executeCommands(commands, wr, finish)
-
-	// <- finish
-
-	// fmt.Println("End of main")
+	fmt.Println("End of main")
 }
 
 func executeCommands(commands []string, wr chan []byte, finish chan bool){
