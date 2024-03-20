@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 )
 
 var appConfig Config
@@ -22,6 +23,7 @@ type VPN struct {
 	Host string `json:"host"`
 	Port string `json:"port"`
 	Username string `json:"username"`
+	Password string `json:"password"`
 	Certificate string `json:"certificate"`
 }
 
@@ -80,6 +82,7 @@ func checkIfOnVPN(vpn VPN) (bool, error) {
 }
 
 func getOnVPN() (bool, error) {
+	exec.Command("")
 	return false, nil
 }
 
