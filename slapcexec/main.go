@@ -7,7 +7,56 @@ import (
 	"os"
 )
 
-func checkIfOnVPN() (bool, error) {
+var appConfig Config
+
+type Server struct {
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Port string `json:"port"`
+	User string `json:"user"`
+	Pass string `json:"pass"`
+	Path string `json:"path"`
+}
+
+type VPN struct {
+	Host string `json:"host"`
+	Port string `json:"port"`
+	Username string `json:"username"`
+	Certificate string `json:"certificate"`
+}
+
+type Config struct {
+	KnownHosts string   `json:"known_hosts"`
+	PrivateKey string   `json:"private_key"`
+	Servers    []Server `json:"servers"`
+	Vpn		   VPN `json:"vpn"`
+}
+
+func init() {
+	appConfig = readConfig()
+}
+
+func GetAppConfig() Config {
+	return appConfig
+}
+
+func readConfig() Config {
+	configFileBytes, err := os.ReadFile("./config.json")
+	if err != nil {
+		panic("Error reading config file " + err.Error())
+	}
+
+	var config Config
+
+	err = json.Unmarshal(configFileBytes, &config)
+	if err != nil {
+		panic("error unmarshalling config " + err.Error())
+	}
+
+	return config
+}
+
+func checkIfOnVPN(vpn VPN) (bool, error) {
 	resp, err := http.Get("https://ifconfig.me")
 
 	if err != nil {
@@ -21,7 +70,7 @@ func checkIfOnVPN() (bool, error) {
 
 	print(string(body) + "\n")
 
-	if string(body) == "192.168.1.1" {
+	if string(body) == vpn.Host {
 		print("on vpn\n")
 		return true, nil
 	} else {
@@ -36,9 +85,11 @@ func getOnVPN() (bool, error) {
 
 func main() {
 
+	config := GetAppConfig()
+
 	print("checking if on vpn...\n")
 
-	onVPN, err := checkIfOnVPN()
+	onVPN, err := checkIfOnVPN(config.Vpn)
 	if err != nil {
 		panic(err)
 	}
